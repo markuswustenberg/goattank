@@ -9,7 +9,7 @@ An animated fish tank where the fish are actually small crosses between fish and
 ## Features
 
 ### Interactive Elements
-- **Click fish** to spook them - they'll spin rapidly, bleat ("BAAA!", "MEHHH!", "😱"), and zoom away
+- **Click fish** to spook them - they'll spin rapidly, react with personality-driven commentary, and zoom away
 - **Click empty water** to spawn a burst of bubbles
 - **Spacebar** scares all fish at once
 - **'F' key** toggles fullscreen mode
@@ -46,14 +46,18 @@ An animated fish tank where the fish are actually small crosses between fish and
 ### AI-Powered Fish Commentary
 - **Claude Haiku integration** for witty, sarcastic fish commentary
 - Fish "speak" via speech bubbles that follow them around
-- Commentary appears every 45 seconds (when API key is configured)
-- Randomized topics and tones for variety:
-  - Topics include existential observations, gossip, philosophical musings, snarky remarks, and more
-  - Tones range from sarcastic and dry to anxious, grumpy, and melodramatic
-- Commentary is context-aware, reflecting:
-  - Current tank conditions and fish distribution
-  - Individual fish personalities and behaviors
-  - Social dynamics and activity levels
+- **Regular commentary** appears every 45 seconds (when API key is configured)
+  - Randomized topics and tones for variety:
+    - Topics include existential observations, gossip, philosophical musings, snarky remarks, and more
+    - Tones range from sarcastic and dry to anxious, grumpy, and melodramatic
+  - Commentary is context-aware, reflecting:
+    - Current tank conditions and fish distribution
+    - Individual fish personalities and behaviors
+    - Social dynamics and activity levels
+- **Spooked reactions** generate instant personality-driven responses when fish are startled
+  - Each fish reacts based on its personality (anxious, chill, hyperactive, lazy, curious, or grumpy)
+  - Reactions vary from panicked to sarcastically annoyed to melodramatically traumatized
+  - Falls back to classic bleats ("BAAA!", "MEHHH!") when no API key is set
 - Set your Anthropic API key with the 'K' key or via the mobile menu
 
 ### Hidden Personality System
