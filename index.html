@@ -45,6 +45,27 @@
                 saveAll();
             });
 
+            // Reset function - clear localStorage and reinitialize
+            function resetTank() {
+                try {
+                    localStorage.removeItem('goatFishState');
+                    localStorage.removeItem('sheatfishState');
+                    localStorage.removeItem('bubbleState');
+                    localStorage.removeItem('plantState');
+                    localStorage.removeItem('grassState');
+                    localStorage.removeItem('animationTime');
+                } catch (e) {
+                    // Silent fail
+                }
+                // Reinitialize everything
+                goatFish = createGoatFish();
+                sheatfish = createSheatfish();
+                bubbles = createBubbles();
+                plants = createPlants();
+                grass = createGrass();
+                animationTimeOffset = 0;
+            }
+
             // Fullscreen toggle (press 'f' key)
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'f' || e.key === 'F') {
@@ -59,6 +80,12 @@
                 if (e.key === ' ') {
                     e.preventDefault();
                     goatFish.forEach(fish => fish.spook());
+                }
+
+                // 'X' key - reset tank
+                if (e.key === 'x' || e.key === 'X') {
+                    e.preventDefault();
+                    resetTank();
                 }
             });
 
@@ -827,9 +854,9 @@
             }
 
             // Create new random fish if no saved state
-            // Scale fish count based on viewport area (1 fish per ~50,000 pixels)
+            // Scale fish count based on viewport area (1 fish per ~100,000 pixels, capped at 25)
             const area = canvas.width * canvas.height;
-            const fishCount = Math.max(15, Math.floor(area / 50000));
+            const fishCount = Math.max(15, Math.min(25, Math.floor(area / 100000)));
             for (let i = 0; i < fishCount; i++) {
                 fish.push(new GoatFish());
             }
