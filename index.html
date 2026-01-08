@@ -307,95 +307,143 @@
                 ctx.fillStyle = this.finColor;
                 ctx.fill();
 
-                // Goat head (more prominent)
+                // Goat head (more prominent and elongated)
                 ctx.beginPath();
-                ctx.ellipse(s * 0.6, 0, s * 0.35, s * 0.3, 0, 0, Math.PI * 2);
+                ctx.ellipse(s * 0.6, 0, s * 0.4, s * 0.35, 0, 0, Math.PI * 2);
                 ctx.fillStyle = this.bodyColor;
                 ctx.fill();
                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
                 ctx.lineWidth = 1;
                 ctx.stroke();
 
-                // Goat snout
+                // Goat snout (longer and more prominent)
                 ctx.beginPath();
-                ctx.ellipse(s * 0.85, 0, s * 0.2, s * 0.15, 0, 0, Math.PI * 2);
+                ctx.ellipse(s * 0.95, 0, s * 0.25, s * 0.18, 0, 0, Math.PI * 2);
                 ctx.fillStyle = this.bodyColor;
                 ctx.fill();
                 ctx.stroke();
 
-                // Nostrils
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                // Bridge of nose
                 ctx.beginPath();
-                ctx.arc(s * 0.9, -s * 0.05, s * 0.03, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(s * 0.9, s * 0.05, s * 0.03, 0, Math.PI * 2);
+                ctx.ellipse(s * 0.8, 0, s * 0.15, s * 0.2, 0, 0, Math.PI * 2);
+                ctx.fillStyle = this.bodyColor;
                 ctx.fill();
 
-                // Goat ears
+                // Nostrils (adjusted for longer snout)
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.beginPath();
+                ctx.arc(s * 1.05, -s * 0.06, s * 0.04, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(s * 1.05, s * 0.06, s * 0.04, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Goat ears (longer and more droopy)
                 ctx.fillStyle = this.hornColor;
-                // Left ear
-                ctx.beginPath();
-                ctx.moveTo(s * 0.5, -s * 0.25);
-                ctx.lineTo(s * 0.4, -s * 0.5);
-                ctx.lineTo(s * 0.55, -s * 0.35);
-                ctx.closePath();
-                ctx.fill();
-                // Right ear
-                ctx.beginPath();
-                ctx.moveTo(s * 0.5, s * 0.25);
-                ctx.lineTo(s * 0.4, s * 0.5);
-                ctx.lineTo(s * 0.55, s * 0.35);
-                ctx.closePath();
-                ctx.fill();
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.lineWidth = 1;
 
-                // Goat horns (bigger and more prominent)
+                // Left ear (droopy and elongated)
+                ctx.beginPath();
+                ctx.moveTo(s * 0.5, -s * 0.3);
+                ctx.quadraticCurveTo(s * 0.35, -s * 0.45, s * 0.3, -s * 0.6);
+                ctx.quadraticCurveTo(s * 0.38, -s * 0.55, s * 0.48, -s * 0.38);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Right ear (droopy and elongated)
+                ctx.beginPath();
+                ctx.moveTo(s * 0.5, s * 0.3);
+                ctx.quadraticCurveTo(s * 0.35, s * 0.45, s * 0.3, s * 0.6);
+                ctx.quadraticCurveTo(s * 0.38, s * 0.55, s * 0.48, s * 0.38);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Goat horns (bigger, more curved and prominent)
                 ctx.strokeStyle = this.hornColor;
-                ctx.lineWidth = 4;
+                ctx.lineWidth = 5;
                 ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
 
-                // Left horn
+                // Left horn (curved back like real goat horns)
                 ctx.beginPath();
-                ctx.moveTo(s * 0.55, -s * 0.3);
-                ctx.quadraticCurveTo(s * 0.75, -s * 0.7, s * 0.65, -s * 1.0);
+                ctx.moveTo(s * 0.52, -s * 0.32);
+                ctx.quadraticCurveTo(s * 0.45, -s * 0.7, s * 0.25, -s * 0.95);
+                ctx.quadraticCurveTo(s * 0.15, -s * 1.0, s * 0.05, -s * 0.95);
                 ctx.stroke();
 
-                // Right horn
+                // Horn ridges for texture (left)
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 0.4;
+                for (let i = 0; i < 4; i++) {
+                    const t = i / 4;
+                    ctx.beginPath();
+                    ctx.arc(s * (0.52 - t * 0.47), -s * (0.32 + t * 0.63), s * 0.05, 0, Math.PI);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+
+                // Right horn (curved back like real goat horns)
+                ctx.lineWidth = 5;
                 ctx.beginPath();
-                ctx.moveTo(s * 0.55, s * 0.3);
-                ctx.quadraticCurveTo(s * 0.75, s * 0.7, s * 0.65, s * 1.0);
+                ctx.moveTo(s * 0.52, s * 0.32);
+                ctx.quadraticCurveTo(s * 0.45, s * 0.7, s * 0.25, s * 0.95);
+                ctx.quadraticCurveTo(s * 0.15, s * 1.0, s * 0.05, s * 0.95);
                 ctx.stroke();
 
-                // Goat-like rectangular pupil eyes
+                // Horn ridges for texture (right)
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 0.4;
+                for (let i = 0; i < 4; i++) {
+                    const t = i / 4;
+                    ctx.beginPath();
+                    ctx.arc(s * (0.52 - t * 0.47), s * (0.32 + t * 0.63), s * 0.05, Math.PI, 2 * Math.PI);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+
+                // Goat-like rectangular pupil eyes (adjusted for new head)
                 // Eye whites
                 ctx.fillStyle = 'white';
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.lineWidth = 1;
                 ctx.beginPath();
-                ctx.ellipse(s * 0.65, -s * 0.12, s * 0.12, s * 0.12, 0, 0, Math.PI * 2);
+                ctx.ellipse(s * 0.7, -s * 0.15, s * 0.13, s * 0.13, 0, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.stroke();
                 ctx.beginPath();
-                ctx.ellipse(s * 0.65, s * 0.12, s * 0.12, s * 0.12, 0, 0, Math.PI * 2);
+                ctx.ellipse(s * 0.7, s * 0.15, s * 0.13, s * 0.13, 0, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.stroke();
 
                 // Rectangular pupils (goat-like, horizontal)
                 ctx.fillStyle = 'black';
-                ctx.fillRect(s * 0.6, -s * 0.14, s * 0.12, s * 0.04);
-                ctx.fillRect(s * 0.6, s * 0.1, s * 0.12, s * 0.04);
+                ctx.fillRect(s * 0.64, -s * 0.17, s * 0.13, s * 0.04);
+                ctx.fillRect(s * 0.64, s * 0.13, s * 0.13, s * 0.04);
 
-                // Goat beard (more prominent)
+                // Goat beard (bushier and more prominent)
                 ctx.strokeStyle = this.hornColor;
                 ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.moveTo(s * 0.85, s * 0.12);
-                ctx.lineTo(s * 1.0, s * 0.15);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(s * 0.85, s * 0.08);
-                ctx.lineTo(s * 1.0, s * 0.05);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(s * 0.85, -s * 0.08);
-                ctx.lineTo(s * 1.0, -s * 0.05);
-                ctx.stroke();
+                ctx.lineCap = 'round';
+
+                // Multiple beard strands for bushier look
+                const beardStrands = [
+                    [s * 0.9, s * 0.15, s * 1.1, s * 0.25],
+                    [s * 0.92, s * 0.12, s * 1.12, s * 0.2],
+                    [s * 0.88, s * 0.18, s * 1.08, s * 0.3],
+                    [s * 0.9, s * 0.08, s * 1.1, s * 0.1],
+                    [s * 0.92, s * 0.05, s * 1.12, s * 0.05],
+                    [s * 0.9, s * 0.02, s * 1.1, -s * 0.02],
+                ];
+
+                beardStrands.forEach(([x1, y1, x2, y2]) => {
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                });
 
                 ctx.restore();
 
