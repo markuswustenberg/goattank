@@ -157,6 +157,75 @@
                 display: block;
             }
         }
+        #helpOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        #helpOverlay.visible {
+            display: flex;
+        }
+        #helpContent {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 90%;
+            width: 360px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            font-family: Arial, sans-serif;
+        }
+        #helpContent h2 {
+            margin: 0 0 20px 0;
+            font-size: 24px;
+            color: #222;
+        }
+        .shortcutRow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .shortcutRow:last-of-type {
+            border-bottom: none;
+        }
+        .shortcutKey {
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 4px 10px;
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: bold;
+            min-width: 60px;
+            text-align: center;
+        }
+        .shortcutDesc {
+            color: #444;
+            font-size: 15px;
+        }
+        #closeHelp {
+            background: #1a4f68;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px;
+            margin-top: 16px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+        }
+        #closeHelp:active {
+            background: #134156;
+        }
     </style>
 </head>
 <body>
@@ -188,6 +257,37 @@
                 <small>Clear saved state and start fresh</small>
             </button>
             <button id="closeMenu">Close Menu</button>
+        </div>
+    </div>
+
+    <div id="helpOverlay">
+        <div id="helpContent">
+            <h2>Keyboard Shortcuts</h2>
+            <div class="shortcutRow">
+                <span class="shortcutDesc">Scare all fish</span>
+                <span class="shortcutKey">Space</span>
+            </div>
+            <div class="shortcutRow">
+                <span class="shortcutDesc">Toggle fullscreen</span>
+                <span class="shortcutKey">F</span>
+            </div>
+            <div class="shortcutRow">
+                <span class="shortcutDesc">Trigger commentary</span>
+                <span class="shortcutKey">C</span>
+            </div>
+            <div class="shortcutRow">
+                <span class="shortcutDesc">Set API key</span>
+                <span class="shortcutKey">K</span>
+            </div>
+            <div class="shortcutRow">
+                <span class="shortcutDesc">Reset tank</span>
+                <span class="shortcutKey">X</span>
+            </div>
+            <div class="shortcutRow">
+                <span class="shortcutDesc">Show this help</span>
+                <span class="shortcutKey">?</span>
+            </div>
+            <button id="closeHelp">Close</button>
         </div>
     </div>
 
@@ -707,6 +807,17 @@ Be witty and original. Keep it under 20 words. Don't explain yourself, just make
                     console.log('C key pressed - triggering commentary');
                     getFishCommentary();
                 }
+
+                // '?' key - show keyboard shortcuts help
+                if (e.key === '?') {
+                    e.preventDefault();
+                    document.getElementById('helpOverlay').classList.toggle('visible');
+                }
+
+                // Escape key - close help overlay if open
+                if (e.key === 'Escape') {
+                    document.getElementById('helpOverlay').classList.remove('visible');
+                }
             });
 
             // Click handler for spooked goat-fish and bubble spawning
@@ -799,6 +910,17 @@ Be witty and original. Keep it under 20 words. Don't explain yourself, just make
             document.getElementById('menuReset').addEventListener('click', () => {
                 closeMenuFn();
                 resetTank();
+            });
+
+            // Help overlay handlers
+            const helpOverlay = document.getElementById('helpOverlay');
+            document.getElementById('closeHelp').addEventListener('click', () => {
+                helpOverlay.classList.remove('visible');
+            });
+            helpOverlay.addEventListener('click', (e) => {
+                if (e.target === helpOverlay) {
+                    helpOverlay.classList.remove('visible');
+                }
             });
         }
 
