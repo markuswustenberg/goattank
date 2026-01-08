@@ -82,8 +82,10 @@
                         const bubble = new Bubble();
                         bubble.x = x + (Math.random() - 0.5) * 40;
                         bubble.y = y + (Math.random() - 0.5) * 40;
-                        bubble.radius = 3 + Math.random() * 6;
+                        bubble.initialRadius = 3 + Math.random() * 6;
+                        bubble.radius = bubble.initialRadius;
                         bubble.speed = 0.3 + Math.random() * 0.5;
+                        bubble.startY = bubble.y;
                         bubbles.push(bubble);
                     }
                 }
@@ -393,16 +395,23 @@
                     this.x = savedState.x;
                     this.y = savedState.y;
                     this.radius = savedState.radius;
+                    this.initialRadius = savedState.initialRadius || savedState.radius;
                     // Clamp speed to new slower range
                     this.speed = Math.min(0.8, Math.max(0.3, savedState.speed * 0.4));
                     this.wobble = savedState.wobble;
+                    this.wobbleSpeed = savedState.wobbleSpeed || 0.05;
+                    this.wobbleAmplitude = savedState.wobbleAmplitude || 0.5;
                 } else {
                     this.x = Math.random() * canvas.width;
                     this.y = canvas.height + 20;
-                    this.radius = 2 + Math.random() * 4;
+                    this.initialRadius = 2 + Math.random() * 4;
+                    this.radius = this.initialRadius;
                     this.speed = 0.3 + Math.random() * 0.5;
                     this.wobble = Math.random() * Math.PI * 2;
+                    this.wobbleSpeed = 0.03 + Math.random() * 0.04;
+                    this.wobbleAmplitude = 0.3 + Math.random() * 0.5;
                 }
+                this.startY = this.y;
             }
 
             toJSON() {
@@ -410,30 +419,62 @@
                     x: this.x,
                     y: this.y,
                     radius: this.radius,
+                    initialRadius: this.initialRadius,
                     speed: this.speed,
-                    wobble: this.wobble
+                    wobble: this.wobble,
+                    wobbleSpeed: this.wobbleSpeed,
+                    wobbleAmplitude: this.wobbleAmplitude
                 };
             }
 
             update() {
-                this.y -= this.speed;
-                this.wobble += 0.05;
-                this.x += Math.sin(this.wobble) * 0.5;
+                // Bubbles accelerate slightly as they rise (buoyancy)
+                this.speed += 0.005;
+                this.speed = Math.min(this.speed, 2.0);
 
-                if (this.y < -20) {
+                this.y -= this.speed;
+
+                // More natural wobble with varying amplitude
+                this.wobble += this.wobbleSpeed;
+                const wobbleOffset = Math.sin(this.wobble) * this.wobbleAmplitude;
+                this.x += wobbleOffset;
+
+                // Add some random drift
+                this.x += (Math.random() - 0.5) * 0.1;
+
+                // Bubbles expand as they rise (pressure decrease)
+                const distanceTraveled = this.startY - this.y;
+                const maxDistance = canvas.height;
+                const expansionFactor = 1 + (distanceTraveled / maxDistance) * 0.5;
+                this.radius = this.initialRadius * expansionFactor;
+
+                // Pop at surface or reset if too far off screen
+                if (this.y < -20 || this.x < -50 || this.x > canvas.width + 50) {
                     this.y = canvas.height + 20;
                     this.x = Math.random() * canvas.width;
+                    this.startY = this.y;
+                    this.speed = 0.3 + Math.random() * 0.5;
+                    this.radius = this.initialRadius;
                 }
             }
 
             draw() {
+                // Slight shimmer effect on bubbles
+                const shimmer = Math.sin(this.wobble * 2) * 0.1 + 0.9;
+
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.2 * shimmer})`;
                 ctx.fill();
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 * shimmer})`;
                 ctx.lineWidth = 1;
                 ctx.stroke();
+
+                // Add highlight to make bubble look more spherical
+                ctx.beginPath();
+                ctx.arc(this.x - this.radius * 0.3, this.y - this.radius * 0.3, this.radius * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.4 * shimmer})`;
+                ctx.fill();
             }
         }
 
@@ -835,6 +876,7 @@
                 const savedBubbles = localStorage.getItem('bubbleState');
                 if (savedBubbles) {
                     const bubbleData = JSON.parse(savedBubbles);
+                    // Restore all saved bubbles (including clicked ones)
                     for (let i = 0; i < bubbleData.length; i++) {
                         bubbles.push(new Bubble(bubbleData[i]));
                     }
@@ -847,8 +889,8 @@
             // Create new bubbles if no saved state
             // Scale bubble count based on viewport area
             const area = canvas.width * canvas.height;
-            const bubbleCount = Math.max(20, Math.floor(area / 50000));
-            for (let i = 0; i < bubbleCount; i++) {
+            const desiredBubbleCount = Math.max(8, Math.floor(area / 100000));
+            for (let i = 0; i < desiredBubbleCount; i++) {
                 bubbles.push(new Bubble());
             }
             return bubbles;
