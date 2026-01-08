@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goat Fish Tank</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #1a1a2e;
+        }
+        #tank {
+            display: block;
+            background: linear-gradient(to bottom, #0a4d68 0%, #1a6f8f 50%, #0a4d68 100%);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="tank"></canvas>
+
+    <script>
+        const canvas = document.getElementById('tank');
+        const ctx = canvas.getContext('2d');
+
+        // Resize canvas to fill window
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            plants = createPlants();
+            grass = createGrass();
+        }
+
+        // Initial setup happens after plants are defined
+        function init() {
+            resizeCanvas();
+            goatFish = createGoatFish();
+            sheatfish = createSheatfish();
+            bubbles = createBubbles();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Save all state when page is about to unload
+            window.addEventListener('beforeunload', () => {
+                saveAll();
+            });
+
+            // Fullscreen toggle (press 'f' key)
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'f' || e.key === 'F') {
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen();
+                    } else {
+                        document.exitFullscreen();
+                    }
+                }
+
+                // Spacebar - scare all the fish!
+                if (e.key === ' ') {
+                    e.preventDefault();
+                    goatFish.forEach(fish => fish.spook());
+                }
+            });
+
+            // Click handler for spooked goat-fish and bubble spawning
+            canvas.addEventListener('click', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                let clickedFish = false;
+                goatFish.forEach(fish => {
+                    if (fish.isClicked(x, y)) {
+                        fish.spook();
+                        clickedFish = true;
+                    }
+                });
+
+                // If didn't click a fish, spawn bubbles
+                if (!clickedFish) {
+                    for (let i = 0; i < 8; i++) {
+                        const bubble = new Bubble();
+                        bubble.x = x + (Math.random() - 0.5) * 40;
+                        bubble.y = y + (Math.random() - 0.5) * 40;
+                        bubble.radius = 3 + Math.random() * 6;
+                        bubble.speed = 0.3 + Math.random() * 0.5;
+                        bubbles.push(bubble);
+                    }
+                }
+            });
+        }
+
+        class GoatFish {
+            constructor(savedState = null) {
+                if (savedState) {
+                    // Restore from saved state
+                    this.x = savedState.x;
+                    this.y = savedState.y;
+
+                    // Clamp velocities to normal range in case fish was spooked when saved
+                    this.vx = Math.max(-1, Math.min(1, savedState.vx));
+                    this.vy = Math.max(-0.5, Math.min(0.5, savedState.vy));
+
+                    this.size = savedState.size;
+                    this.angle = savedState.angle;
+                    this.bodyColor = savedState.bodyColor;
+                    this.finColor = savedState.finColor;
+                    this.hornColor = savedState.hornColor;
+                } else {
+                    // Create new random fish
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.vx = (Math.random() - 0.5) * 2;
+                    this.vy = (Math.random() - 0.5) * 1;
+                    this.size = 20 + Math.random() * 30;
+                    this.angle = Math.atan2(this.vy, this.vx);
+
+                    // Random colors for variety
+                    const hue = Math.random() * 360;
+                    this.bodyColor = `hsl(${hue}, 70%, 60%)`;
+                    this.finColor = `hsl(${hue + 30}, 60%, 50%)`;
+                    this.hornColor = `hsl(${hue - 30}, 50%, 40%)`;
+                }
+
+                this.tailPhase = Math.random() * Math.PI * 2;
+                this.finPhase = Math.random() * Math.PI * 2;
+
+                // Goat eye properties
+                this.pupilOffsetX = 0;
+                this.pupilOffsetY = 0;
+
+                // Spooked state
+                this.spooked = false;
+                this.spookTime = 0;
+                this.spinSpeed = 0;
+                this.bleatText = '';
+                this.bleatOpacity = 0;
+            }
+
+            toJSON() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    vx: this.vx,
+                    vy: this.vy,
+                    size: this.size,
+                    angle: this.angle,
+                    bodyColor: this.bodyColor,
+                    finColor: this.finColor,
+                    hornColor: this.hornColor
+                };
+            }
+
+            spook() {
+                this.spooked = true;
+                this.spookTime = 100;
+                this.spinSpeed = 0.5;
+
+                // Zoom away in random direction at high speed
+                const angle = Math.random() * Math.PI * 2;
+                this.vx = Math.cos(angle) * 8;
+                this.vy = Math.sin(angle) * 8;
+
+                // Random bleat
+                const bleats = ['BAAA!', 'MEHHH!', '😱', 'AAAH!', 'NOPE!'];
+                this.bleatText = bleats[Math.floor(Math.random() * bleats.length)];
+                this.bleatOpacity = 1;
+            }
+
+            update() {
+                // Handle spooked state
+                if (this.spooked) {
+                    this.spookTime--;
+                    this.angle += this.spinSpeed;
+                    this.spinSpeed *= 0.95;
+
+                    if (this.spookTime <= 0) {
+                        this.spooked = false;
+                        // Slow back down to normal speed
+                        this.vx *= 0.3;
+                        this.vy *= 0.3;
+                    }
+                }
+
+                // Fade out bleat text
+                if (this.bleatOpacity > 0) {
+                    this.bleatOpacity -= 0.02;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Bounce off walls
+                if (this.x < this.size || this.x > canvas.width - this.size) {
+                    this.vx *= -1;
+                    this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
+                }
+                if (this.y < this.size || this.y > canvas.height - this.size) {
+                    this.vy *= -1;
+                    this.y = Math.max(this.size, Math.min(canvas.height - this.size, this.y));
+                }
+
+                // Smooth angle transition (only when not spooked)
+                if (!this.spooked) {
+                    const targetAngle = Math.atan2(this.vy, this.vx);
+                    this.angle += (targetAngle - this.angle) * 0.1;
+                }
+
+                // Update animation phases
+                this.tailPhase += 0.1;
+                this.finPhase += 0.15;
+            }
+
+            isClicked(x, y) {
+                const dx = x - this.x;
+                const dy = y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                return distance < this.size * 1.5;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                const s = this.size;
+
+                // Tail (animated)
+                const tailWag = Math.sin(this.tailPhase) * 0.3;
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.8, 0);
+                ctx.quadraticCurveTo(
+                    -s * 1.3,
+                    s * 0.5 * tailWag,
+                    -s * 1.5,
+                    s * 0.3 + s * 0.2 * tailWag
+                );
+                ctx.quadraticCurveTo(
+                    -s * 1.3,
+                    0,
+                    -s * 1.5,
+                    -s * 0.3 - s * 0.2 * tailWag
+                );
+                ctx.quadraticCurveTo(
+                    -s * 1.3,
+                    -s * 0.5 * tailWag,
+                    -s * 0.8,
+                    0
+                );
+                ctx.fillStyle = this.finColor;
+                ctx.fill();
+
+                // Body (goat-like)
+                ctx.beginPath();
+                ctx.ellipse(0, 0, s * 0.8, s * 0.5, 0, 0, Math.PI * 2);
+                ctx.fillStyle = this.bodyColor;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Top fin (animated)
+                const finWave = Math.sin(this.finPhase) * 0.1;
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.2, -s * 0.5);
+                ctx.lineTo(0, -s * 0.9 - finWave * s);
+                ctx.lineTo(s * 0.2, -s * 0.5);
+                ctx.closePath();
+                ctx.fillStyle = this.finColor;
+                ctx.fill();
+
+                // Bottom fin
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.2, s * 0.5);
+                ctx.lineTo(0, s * 0.8 + finWave * s);
+                ctx.lineTo(s * 0.2, s * 0.5);
+                ctx.closePath();
+                ctx.fillStyle = this.finColor;
+                ctx.fill();
+
+                // Goat head (more prominent)
+                ctx.beginPath();
+                ctx.ellipse(s * 0.6, 0, s * 0.35, s * 0.3, 0, 0, Math.PI * 2);
+                ctx.fillStyle = this.bodyColor;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Goat snout
+                ctx.beginPath();
+                ctx.ellipse(s * 0.85, 0, s * 0.2, s * 0.15, 0, 0, Math.PI * 2);
+                ctx.fillStyle = this.bodyColor;
+                ctx.fill();
+                ctx.stroke();
+
+                // Nostrils
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.beginPath();
+                ctx.arc(s * 0.9, -s * 0.05, s * 0.03, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(s * 0.9, s * 0.05, s * 0.03, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Goat ears
+                ctx.fillStyle = this.hornColor;
+                // Left ear
+                ctx.beginPath();
+                ctx.moveTo(s * 0.5, -s * 0.25);
+                ctx.lineTo(s * 0.4, -s * 0.5);
+                ctx.lineTo(s * 0.55, -s * 0.35);
+                ctx.closePath();
+                ctx.fill();
+                // Right ear
+                ctx.beginPath();
+                ctx.moveTo(s * 0.5, s * 0.25);
+                ctx.lineTo(s * 0.4, s * 0.5);
+                ctx.lineTo(s * 0.55, s * 0.35);
+                ctx.closePath();
+                ctx.fill();
+
+                // Goat horns (bigger and more prominent)
+                ctx.strokeStyle = this.hornColor;
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+
+                // Left horn
+                ctx.beginPath();
+                ctx.moveTo(s * 0.55, -s * 0.3);
+                ctx.quadraticCurveTo(s * 0.75, -s * 0.7, s * 0.65, -s * 1.0);
+                ctx.stroke();
+
+                // Right horn
+                ctx.beginPath();
+                ctx.moveTo(s * 0.55, s * 0.3);
+                ctx.quadraticCurveTo(s * 0.75, s * 0.7, s * 0.65, s * 1.0);
+                ctx.stroke();
+
+                // Goat-like rectangular pupil eyes
+                // Eye whites
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.ellipse(s * 0.65, -s * 0.12, s * 0.12, s * 0.12, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(s * 0.65, s * 0.12, s * 0.12, s * 0.12, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Rectangular pupils (goat-like, horizontal)
+                ctx.fillStyle = 'black';
+                ctx.fillRect(s * 0.6, -s * 0.14, s * 0.12, s * 0.04);
+                ctx.fillRect(s * 0.6, s * 0.1, s * 0.12, s * 0.04);
+
+                // Goat beard (more prominent)
+                ctx.strokeStyle = this.hornColor;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(s * 0.85, s * 0.12);
+                ctx.lineTo(s * 1.0, s * 0.15);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(s * 0.85, s * 0.08);
+                ctx.lineTo(s * 1.0, s * 0.05);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(s * 0.85, -s * 0.08);
+                ctx.lineTo(s * 1.0, -s * 0.05);
+                ctx.stroke();
+
+                ctx.restore();
+
+                // Draw bleat text above fish
+                if (this.bleatOpacity > 0) {
+                    ctx.save();
+                    ctx.font = 'bold 24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillStyle = `rgba(255, 255, 255, ${this.bleatOpacity})`;
+                    ctx.strokeStyle = `rgba(0, 0, 0, ${this.bleatOpacity})`;
+                    ctx.lineWidth = 3;
+                    ctx.strokeText(this.bleatText, this.x, this.y - s * 1.5);
+                    ctx.fillText(this.bleatText, this.x, this.y - s * 1.5);
+                    ctx.restore();
+                }
+            }
+        }
+
+        // Bubbles
+        class Bubble {
+            constructor(savedState = null) {
+                if (savedState) {
+                    this.x = savedState.x;
+                    this.y = savedState.y;
+                    this.radius = savedState.radius;
+                    // Clamp speed to new slower range
+                    this.speed = Math.min(0.8, Math.max(0.3, savedState.speed * 0.4));
+                    this.wobble = savedState.wobble;
+                } else {
+                    this.x = Math.random() * canvas.width;
+                    this.y = canvas.height + 20;
+                    this.radius = 2 + Math.random() * 4;
+                    this.speed = 0.3 + Math.random() * 0.5;
+                    this.wobble = Math.random() * Math.PI * 2;
+                }
+            }
+
+            toJSON() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    radius: this.radius,
+                    speed: this.speed,
+                    wobble: this.wobble
+                };
+            }
+
+            update() {
+                this.y -= this.speed;
+                this.wobble += 0.05;
+                this.x += Math.sin(this.wobble) * 0.5;
+
+                if (this.y < -20) {
+                    this.y = canvas.height + 20;
+                    this.x = Math.random() * canvas.width;
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        // Sheatfish (catfish that sucks along the bottom)
+        class Sheatfish {
+            constructor(savedState = null) {
+                if (savedState) {
+                    this.x = savedState.x;
+                    this.y = savedState.y;
+                    this.vx = savedState.vx;
+                    this.size = savedState.size;
+                    this.color = savedState.color;
+                    this.whiskerColor = savedState.whiskerColor;
+                } else {
+                    // Start at random position
+                    this.x = Math.random() * canvas.width;
+                    // Stay near bottom
+                    this.y = canvas.height - 50 - Math.random() * 30;
+                    // Slow horizontal movement
+                    this.vx = (Math.random() > 0.5 ? 1 : -1) * (0.3 + Math.random() * 0.4);
+                    this.size = 30 + Math.random() * 20;
+
+                    // Muddy catfish colors
+                    const hue = 30 + Math.random() * 30; // Browns/tans
+                    this.color = `hsl(${hue}, 40%, 35%)`;
+                    this.whiskerColor = `hsl(${hue}, 30%, 25%)`;
+                }
+
+                this.suckPhase = Math.random() * Math.PI * 2;
+                this.whiskerPhase = Math.random() * Math.PI * 2;
+                this.angle = this.vx > 0 ? 0 : Math.PI;
+            }
+
+            toJSON() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    vx: this.vx,
+                    size: this.size,
+                    color: this.color,
+                    whiskerColor: this.whiskerColor
+                };
+            }
+
+            update() {
+                this.x += this.vx;
+
+                // Gentle vertical wobble (bottom feeder behavior)
+                this.y += Math.sin(this.suckPhase) * 0.2;
+
+                // Keep near bottom
+                const minY = canvas.height - 80;
+                const maxY = canvas.height - 30;
+                this.y = Math.max(minY, Math.min(maxY, this.y));
+
+                // Wrap around screen edges (can go off-screen)
+                if (this.vx > 0 && this.x > canvas.width + this.size * 2) {
+                    this.x = -this.size * 2;
+                } else if (this.vx < 0 && this.x < -this.size * 2) {
+                    this.x = canvas.width + this.size * 2;
+                }
+
+                // Update angle smoothly based on direction
+                const targetAngle = this.vx > 0 ? 0 : Math.PI;
+                this.angle += (targetAngle - this.angle) * 0.05;
+
+                // Update animation phases
+                this.suckPhase += 0.03;
+                this.whiskerPhase += 0.08;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                const s = this.size;
+
+                // Tail
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.9, 0);
+                ctx.quadraticCurveTo(-s * 1.2, -s * 0.2, -s * 1.4, -s * 0.3);
+                ctx.quadraticCurveTo(-s * 1.2, 0, -s * 1.4, s * 0.3);
+                ctx.quadraticCurveTo(-s * 1.2, s * 0.2, -s * 0.9, 0);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+
+                // Main body (long and low for bottom feeder)
+                ctx.beginPath();
+                ctx.ellipse(0, 0, s * 0.9, s * 0.35, 0, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Belly (lighter, for bottom feeder look)
+                ctx.beginPath();
+                ctx.ellipse(0, s * 0.15, s * 0.7, s * 0.25, 0, 0, Math.PI * 2);
+                const lighterColor = this.color.replace(/\d+%\)$/, (match) => {
+                    const lightness = parseInt(match);
+                    return (lightness + 15) + '%)';
+                });
+                ctx.fillStyle = lighterColor;
+                ctx.fill();
+
+                // Top fin
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.3, -s * 0.35);
+                ctx.lineTo(-s * 0.2, -s * 0.6);
+                ctx.lineTo(0, -s * 0.35);
+                ctx.closePath();
+                ctx.fillStyle = this.color;
+                ctx.fill();
+
+                // Side fins (pectoral fins)
+                ctx.beginPath();
+                ctx.ellipse(-s * 0.2, s * 0.35, s * 0.3, s * 0.15, -0.3, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(-s * 0.2, -s * 0.35, s * 0.3, s * 0.15, 0.3, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+
+                // Head
+                ctx.beginPath();
+                ctx.ellipse(s * 0.6, 0, s * 0.4, s * 0.35, 0, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+
+                // Sucker mouth (bottom feeder) with sucking animation
+                const suckAmount = Math.sin(this.suckPhase) * 0.05 + 0.1;
+                ctx.beginPath();
+                ctx.ellipse(s * 0.9, s * 0.2, s * 0.15, s * (0.1 + suckAmount), 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Eyes (small, on top of head)
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.beginPath();
+                ctx.arc(s * 0.5, -s * 0.2, s * 0.06, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(s * 0.5, s * 0.2, s * 0.06, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Whiskers (barbels) - animated
+                ctx.strokeStyle = this.whiskerColor;
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+
+                const whiskerWave = Math.sin(this.whiskerPhase) * 0.1;
+
+                // Upper whiskers
+                ctx.beginPath();
+                ctx.moveTo(s * 0.85, -s * 0.1);
+                ctx.quadraticCurveTo(s * 1.1, -s * 0.2 + whiskerWave * s, s * 1.3, -s * 0.15 + whiskerWave * s);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(s * 0.85, s * 0.1);
+                ctx.quadraticCurveTo(s * 1.1, s * 0.2 - whiskerWave * s, s * 1.3, s * 0.15 - whiskerWave * s);
+                ctx.stroke();
+
+                // Lower whiskers (longer)
+                ctx.beginPath();
+                ctx.moveTo(s * 0.9, -s * 0.25);
+                ctx.quadraticCurveTo(s * 1.2, -s * 0.4 + whiskerWave * s * 0.5, s * 1.5, -s * 0.35 + whiskerWave * s);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(s * 0.9, s * 0.25);
+                ctx.quadraticCurveTo(s * 1.2, s * 0.4 - whiskerWave * s * 0.5, s * 1.5, s * 0.35 - whiskerWave * s);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+        // Seaweed/plants
+        class Plant {
+            constructor(xOrSavedState = null) {
+                if (xOrSavedState && typeof xOrSavedState === 'object') {
+                    // Restore from saved state
+                    this.x = xOrSavedState.x;
+                    this.segments = xOrSavedState.segments;
+                    this.segmentHeight = xOrSavedState.segmentHeight;
+                    this.color = xOrSavedState.color;
+                    this.phase = xOrSavedState.phase;
+                } else {
+                    // Create new plant with optional x position
+                    this.x = xOrSavedState || Math.random() * canvas.width;
+                    this.segments = 8 + Math.floor(Math.random() * 5);
+                    this.segmentHeight = 30 + Math.random() * 20;
+                    this.color = `hsl(${100 + Math.random() * 40}, 50%, 35%)`;
+                    this.phase = Math.random() * Math.PI * 2;
+                }
+            }
+
+            toJSON() {
+                return {
+                    x: this.x,
+                    segments: this.segments,
+                    segmentHeight: this.segmentHeight,
+                    color: this.color,
+                    phase: this.phase
+                };
+            }
+
+            draw(time) {
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 6;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                ctx.beginPath();
+                ctx.moveTo(this.x, canvas.height);
+
+                for (let i = 0; i < this.segments; i++) {
+                    const y = canvas.height - i * this.segmentHeight;
+                    const sway = Math.sin(time * 0.001 + this.phase + i * 0.3) * (i * 3);
+                    ctx.lineTo(this.x + sway, y);
+                }
+
+                ctx.stroke();
+            }
+        }
+
+        function createPlants() {
+            const plants = [];
+
+            // Try to load saved plant state from localStorage
+            try {
+                const savedPlants = localStorage.getItem('plantState');
+                if (savedPlants) {
+                    const plantData = JSON.parse(savedPlants);
+                    for (let i = 0; i < plantData.length; i++) {
+                        plants.push(new Plant(plantData[i]));
+                    }
+                    return plants;
+                }
+            } catch (e) {
+                // Silent fail, just create new plants
+            }
+
+            // Create new plants if no saved state
+            const plantCount = Math.max(12, Math.floor(canvas.width / 100));
+            for (let i = 0; i < plantCount; i++) {
+                const spacing = canvas.width / plantCount;
+                plants.push(new Plant(spacing * i + spacing / 2 + (Math.random() - 0.5) * 40));
+            }
+            return plants;
+        }
+
+        // Grass blades
+        class Grass {
+            constructor(xOrSavedState = null) {
+                if (xOrSavedState && typeof xOrSavedState === 'object') {
+                    this.x = xOrSavedState.x;
+                    this.height = xOrSavedState.height;
+                    this.color = xOrSavedState.color;
+                    this.phase = xOrSavedState.phase;
+                } else {
+                    this.x = xOrSavedState || Math.random() * canvas.width;
+                    this.height = 10 + Math.random() * 25;
+                    this.color = `hsl(${110 + Math.random() * 30}, 60%, ${25 + Math.random() * 15}%)`;
+                    this.phase = Math.random() * Math.PI * 2;
+                }
+            }
+
+            toJSON() {
+                return {
+                    x: this.x,
+                    height: this.height,
+                    color: this.color,
+                    phase: this.phase
+                };
+            }
+
+            draw(time) {
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+
+                const sway = Math.sin(time * 0.002 + this.phase) * 3;
+
+                ctx.beginPath();
+                ctx.moveTo(this.x, canvas.height);
+                ctx.lineTo(this.x + sway, canvas.height - this.height);
+                ctx.stroke();
+            }
+        }
+
+        function createGrass() {
+            const grass = [];
+
+            // Try to load saved grass state from localStorage
+            try {
+                const savedGrass = localStorage.getItem('grassState');
+                if (savedGrass) {
+                    const grassData = JSON.parse(savedGrass);
+                    for (let i = 0; i < grassData.length; i++) {
+                        grass.push(new Grass(grassData[i]));
+                    }
+                    return grass;
+                }
+            } catch (e) {
+                // Silent fail, just create new grass
+            }
+
+            // Create new grass if no saved state - dense coverage
+            const grassCount = Math.max(50, Math.floor(canvas.width / 15));
+            for (let i = 0; i < grassCount; i++) {
+                grass.push(new Grass(Math.random() * canvas.width));
+            }
+            return grass;
+        }
+
+        function createGoatFish() {
+            const fish = [];
+
+            // Try to load saved fish state from localStorage
+            try {
+                const savedFish = localStorage.getItem('goatFishState');
+                if (savedFish) {
+                    const fishData = JSON.parse(savedFish);
+                    for (let i = 0; i < fishData.length; i++) {
+                        fish.push(new GoatFish(fishData[i]));
+                    }
+                    return fish;
+                }
+            } catch (e) {
+                // Silent fail, just create new fish
+            }
+
+            // Create new random fish if no saved state
+            // Scale fish count based on viewport area (1 fish per ~50,000 pixels)
+            const area = canvas.width * canvas.height;
+            const fishCount = Math.max(15, Math.floor(area / 50000));
+            for (let i = 0; i < fishCount; i++) {
+                fish.push(new GoatFish());
+            }
+            return fish;
+        }
+
+        function createSheatfish() {
+            const sheatfish = [];
+
+            // Try to load saved sheatfish state from localStorage
+            try {
+                const savedSheatfish = localStorage.getItem('sheatfishState');
+                if (savedSheatfish) {
+                    const sheatfishData = JSON.parse(savedSheatfish);
+                    for (let i = 0; i < sheatfishData.length; i++) {
+                        sheatfish.push(new Sheatfish(sheatfishData[i]));
+                    }
+                    return sheatfish;
+                }
+            } catch (e) {
+                // Silent fail, just create new sheatfish
+            }
+
+            // Create 2-3 sheatfish (they're bottom feeders, less common)
+            const sheatfishCount = 2 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < sheatfishCount; i++) {
+                sheatfish.push(new Sheatfish());
+            }
+            return sheatfish;
+        }
+
+        function saveAll() {
+            try {
+                const fishData = goatFish.map(fish => fish.toJSON());
+                const sheatfishData = sheatfish.map(fish => fish.toJSON());
+                const bubbleData = bubbles.map(bubble => bubble.toJSON());
+                const plantData = plants.map(plant => plant.toJSON());
+                const grassData = grass.map(g => g.toJSON());
+
+                localStorage.setItem('goatFishState', JSON.stringify(fishData));
+                localStorage.setItem('sheatfishState', JSON.stringify(sheatfishData));
+                localStorage.setItem('bubbleState', JSON.stringify(bubbleData));
+                localStorage.setItem('plantState', JSON.stringify(plantData));
+                localStorage.setItem('grassState', JSON.stringify(grassData));
+                localStorage.setItem('animationTime', currentAnimationTime.toString());
+            } catch (e) {
+                // Silent fail
+            }
+        }
+
+        function createBubbles() {
+            const bubbles = [];
+
+            // Try to load saved bubble state from localStorage
+            try {
+                const savedBubbles = localStorage.getItem('bubbleState');
+                if (savedBubbles) {
+                    const bubbleData = JSON.parse(savedBubbles);
+                    for (let i = 0; i < bubbleData.length; i++) {
+                        bubbles.push(new Bubble(bubbleData[i]));
+                    }
+                    return bubbles;
+                }
+            } catch (e) {
+                // Silent fail, just create new bubbles
+            }
+
+            // Create new bubbles if no saved state
+            // Scale bubble count based on viewport area
+            const area = canvas.width * canvas.height;
+            const bubbleCount = Math.max(20, Math.floor(area / 50000));
+            for (let i = 0; i < bubbleCount; i++) {
+                bubbles.push(new Bubble());
+            }
+            return bubbles;
+        }
+
+        let plants = [];
+        let grass = [];
+        let goatFish = [];
+        let sheatfish = [];
+        let bubbles = [];
+
+        // Track animation time offset to preserve animation state across reloads
+        let animationTimeOffset = 0;
+        let currentAnimationTime = 0;
+        try {
+            const saved = localStorage.getItem('animationTime');
+            if (saved) {
+                animationTimeOffset = parseFloat(saved);
+            }
+        } catch (e) {
+            // Silent fail
+        }
+
+        // Animation loop
+        function animate(timestamp) {
+            // Water gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#1a5f7a');    // Lighter blue at top
+            gradient.addColorStop(0.5, '#0e4d66');  // Mid tone
+            gradient.addColorStop(1, '#083344');    // Darker at bottom
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Adjust timestamp with saved offset
+            currentAnimationTime = timestamp + animationTimeOffset;
+
+            // Draw grass (behind plants)
+            grass.forEach(g => g.draw(currentAnimationTime));
+
+            // Draw plants
+            plants.forEach(plant => plant.draw(currentAnimationTime));
+
+            // Update and draw bubbles
+            bubbles.forEach(bubble => {
+                bubble.update();
+                bubble.draw();
+            });
+
+            // Update and draw sheatfish (bottom feeders, drawn before goat-fish)
+            sheatfish.forEach(fish => {
+                fish.update();
+                fish.draw();
+            });
+
+            // Update and draw goat-fish
+            goatFish.forEach(fish => {
+                fish.update();
+                fish.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize and start animation
+        init();
+        animate(0);
+    </script>
+</body>
+</html>
