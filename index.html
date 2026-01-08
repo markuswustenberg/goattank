@@ -236,10 +236,6 @@
     <div id="menuOverlay">
         <div id="menuContent">
             <h2>Goat Fish Tank Menu</h2>
-            <button class="menuItem" id="menuScareAll">
-                <strong>🐐 Scare All Fish</strong>
-                <small>Watch them all scatter!</small>
-            </button>
             <button class="menuItem" id="menuFullscreen">
                 <strong>⛶ Toggle Fullscreen</strong>
                 <small>Enter or exit fullscreen mode</small>
@@ -263,10 +259,6 @@
     <div id="helpOverlay">
         <div id="helpContent">
             <h2>Keyboard Shortcuts</h2>
-            <div class="shortcutRow">
-                <span class="shortcutDesc">Scare all fish</span>
-                <span class="shortcutKey">Space</span>
-            </div>
             <div class="shortcutRow">
                 <span class="shortcutDesc">Toggle fullscreen</span>
                 <span class="shortcutKey">F</span>
@@ -340,7 +332,6 @@
             });
 
             // Calculate aggregated statistics
-            const totalSpooks = goatFish.reduce((sum, f) => sum + f.totalSpooked, 0);
             const totalDistance = goatFish.reduce((sum, f) => sum + f.distanceTraveled, 0);
             const personalities = goatFish.reduce((acc, f) => {
                 acc[f.personality] = (acc[f.personality] || 0) + 1;
@@ -353,7 +344,6 @@
             const lowerZone = goatFish.filter(f => f.y >= canvas.height * 0.67).length;
 
             // Find fish with interesting states
-            const mostSpooked = goatFish.reduce((max, f) => f.totalSpooked > max.totalSpooked ? f : max, goatFish[0]);
             const mostActive = goatFish.reduce((max, f) => f.distanceTraveled > max.distanceTraveled ? f : max, goatFish[0]);
             const mostLazy = goatFish.reduce((min, f) => f.distanceTraveled < min.distanceTraveled ? f : min, goatFish[0]);
             const mostSocial = goatFish.reduce((max, f) => f.nearbyFishCount > max.nearbyFishCount ? f : max, goatFish[0]);
@@ -369,7 +359,6 @@
                 tankHeight: canvas.height,
 
                 // Aggregate stats
-                totalSpooksAllTime: totalSpooks,
                 totalDistanceTraveled: Math.round(totalDistance),
                 personalityDistribution: personalities,
 
@@ -379,11 +368,6 @@
                 fishInLowerZone: lowerZone,
 
                 // Interesting individual fish (hidden personalities!)
-                mostSpookedFish: {
-                    personality: mostSpooked.personality,
-                    totalSpooked: mostSpooked.totalSpooked,
-                    timeSinceLastSpook: mostSpooked.timeSinceLastSpook
-                },
                 mostActiveFish: {
                     personality: mostActive.personality,
                     distanceTraveled: Math.round(mostActive.distanceTraveled)
@@ -405,12 +389,10 @@
 
                 // Sample of individual fish states
                 goatFishStates: goatFish.slice(0, 3).map(fish => ({
-                    spooked: fish.spooked,
                     personality: fish.personality,
                     distanceTraveled: Math.round(fish.distanceTraveled),
                     nearbyFriends: fish.nearbyFishCount,
-                    depth: Math.round((fish.y / canvas.height) * 100) + '%',
-                    totalSpooked: fish.totalSpooked
+                    depth: Math.round((fish.y / canvas.height) * 100) + '%'
                 })),
 
                 sheatfishPositions: sheatfish.map(fish => ({
@@ -450,8 +432,8 @@
             commentaryDiv.style.top = y + 'px';
         }
 
-        // Display commentary in the UI as a speech bubble from a random fish
-        function displayCommentary(text) {
+        // Display commentary in the UI as a speech bubble from a fish (random if not specified)
+        function displayCommentary(text, fish = null) {
             if (goatFish.length === 0) return;
 
             // Clear any existing timeout and hide old bubble
@@ -464,128 +446,25 @@
 
             // Small delay to ensure fade-out completes, then show new bubble
             setTimeout(() => {
-                // Pick a random fish
-                speakingFish = goatFish[Math.floor(Math.random() * goatFish.length)];
+                // Use specified fish or pick a random one
+                speakingFish = fish || goatFish[Math.floor(Math.random() * goatFish.length)];
 
                 commentaryDiv.textContent = text;
                 updateBubblePosition();
                 commentaryDiv.classList.add('visible');
 
-                // Hide a few seconds before the next commentary would trigger
+                // Hide after a while (shorter if triggered by click)
+                const duration = fish ? 5000 : COMMENTARY_INTERVAL - 3000;
                 commentaryTimeout = setTimeout(() => {
                     commentaryDiv.classList.remove('visible');
                     speakingFish = null;
                     commentaryTimeout = null;
-                }, COMMENTARY_INTERVAL - 3000);
+                }, duration);
             }, 100);
         }
 
-        // Display spooked reaction as a speech bubble from the specific spooked fish
-        function displaySpookedReaction(text, fish) {
-            if (!fish || goatFish.indexOf(fish) === -1) return;
-
-            // Clear any existing timeout and hide old bubble
-            if (commentaryTimeout) {
-                clearTimeout(commentaryTimeout);
-                commentaryTimeout = null;
-            }
-            commentaryDiv.classList.remove('visible');
-            speakingFish = null;
-
-            // Small delay to ensure fade-out completes, then show new bubble
-            setTimeout(() => {
-                speakingFish = fish;
-
-                commentaryDiv.textContent = text;
-                updateBubblePosition();
-                commentaryDiv.classList.add('visible');
-
-                // Hide after 3 seconds (shorter than regular commentary)
-                commentaryTimeout = setTimeout(() => {
-                    commentaryDiv.classList.remove('visible');
-                    speakingFish = null;
-                    commentaryTimeout = null;
-                }, 3000);
-            }, 100);
-        }
-
-        // Call Anthropic API for spooked fish reactions
-        async function getSpokedCommentary(fish) {
-            const apiKey = getApiKey();
-            if (!apiKey) {
-                // Fallback to hardcoded bleats
-                const bleats = ['BAAA!', 'MEHHH!', '😱', 'AAAH!', 'NOPE!'];
-                return bleats[Math.floor(Math.random() * bleats.length)];
-            }
-
-            const topics = [
-                'sudden panic reaction',
-                'existential crisis moment',
-                'dramatic overreaction',
-                'paranoid outburst',
-                'startled complaint',
-                'fearful exclamation',
-                'annoyed protest',
-                'melodramatic shock'
-            ];
-
-            const tones = [
-                'panicked and breathless',
-                'dramatically offended',
-                'sarcastically annoyed',
-                'genuinely terrified',
-                'passively aggressive',
-                'melodramatically traumatized'
-            ];
-
-            const randomTopic = topics[Math.floor(Math.random() * topics.length)];
-            const randomTone = tones[Math.floor(Math.random() * tones.length)];
-
-            const prompt = `You are a ${fish.personality} goat-fish who just got spooked/startled in an aquarium. Make a ${randomTone} ${randomTopic}. Keep it under 5 words. Just the exclamation, no explanation. Never use quotation marks around the text.`;
-
-            try {
-                const response = await fetch('https://api.anthropic.com/v1/messages', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': apiKey,
-                        'anthropic-version': '2023-06-01',
-                        'anthropic-dangerous-direct-browser-access': 'true'
-                    },
-                    body: JSON.stringify({
-                        model: 'claude-haiku-4-5-20251001',
-                        max_tokens: 30,
-                        messages: [{
-                            role: 'user',
-                            content: prompt
-                        }]
-                    })
-                });
-
-                if (!response.ok) {
-                    // Fallback to hardcoded on API error
-                    const bleats = ['BAAA!', 'MEHHH!', '😱', 'AAAH!', 'NOPE!'];
-                    return bleats[Math.floor(Math.random() * bleats.length)];
-                }
-
-                const data = await response.json();
-                if (data.content && data.content[0] && data.content[0].text) {
-                    return data.content[0].text;
-                } else {
-                    // Fallback
-                    const bleats = ['BAAA!', 'MEHHH!', '😱', 'AAAH!', 'NOPE!'];
-                    return bleats[Math.floor(Math.random() * bleats.length)];
-                }
-            } catch (error) {
-                console.error('Failed to get spooked commentary:', error);
-                // Fallback
-                const bleats = ['BAAA!', 'MEHHH!', '😱', 'AAAH!', 'NOPE!'];
-                return bleats[Math.floor(Math.random() * bleats.length)];
-            }
-        }
-
-        // Call Anthropic API for fish commentary
-        async function getFishCommentary() {
+        // Call Anthropic API for fish commentary (optionally from a specific fish)
+        async function getFishCommentary(specificFish = null) {
             const apiKey = getApiKey();
             if (!apiKey) {
                 console.log('No API key set. Press K to set your Anthropic API key.');
@@ -633,7 +512,9 @@
             const includeZones = Math.random() > 0.5;
             const includeSocial = Math.random() > 0.5;
 
-            let contextInfo = `You are a goat-fish in an aquarium. There are ${state.goatFishCount} goat-fish and ${state.sheatfishCount} sheatfish here.`;
+            // Include specific fish personality if provided
+            const fishPersonality = specificFish ? specificFish.personality : 'random';
+            let contextInfo = `You are a ${fishPersonality} goat-fish in an aquarium. There are ${state.goatFishCount} goat-fish and ${state.sheatfishCount} sheatfish here.`;
 
             if (includePersonalities && Object.keys(state.personalityDistribution).length > 0) {
                 const personalityList = Object.entries(state.personalityDistribution)
@@ -648,16 +529,6 @@
 
             if (includeSocial) {
                 contextInfo += ` Most social fish has ${state.mostSocialFish.nearbyFriends} friends nearby. Loneliest has ${state.loneliestFish.nearbyFriends}.`;
-            }
-
-            // Sometimes mention interesting facts
-            if (Math.random() > 0.6) {
-                if (state.totalSpooksAllTime > 10) {
-                    contextInfo += ` Total spook count: ${state.totalSpooksAllTime}.`;
-                }
-                if (state.mostSpookedFish.totalSpooked > 3) {
-                    contextInfo += ` Someone's been spooked ${state.mostSpookedFish.totalSpooked} times.`;
-                }
             }
 
             const prompt = `${contextInfo}
@@ -698,14 +569,14 @@ Be witty and original. Keep it under 20 words. Don't explain yourself, just make
                 const data = await response.json();
                 console.log('API response:', data);
                 if (data.content && data.content[0] && data.content[0].text) {
-                    displayCommentary(data.content[0].text);
+                    displayCommentary(data.content[0].text, specificFish);
                 } else {
                     console.error('Unexpected API response format:', data);
-                    displayCommentary('Received unexpected response from API.');
+                    displayCommentary('Received unexpected response from API.', specificFish);
                 }
             } catch (error) {
                 console.error('Failed to get fish commentary:', error);
-                displayCommentary(`Error: ${error.message}. Check console for details.`);
+                displayCommentary(`Error: ${error.message}. Check console for details.`, specificFish);
             }
         }
 
@@ -783,12 +654,6 @@ Be witty and original. Keep it under 20 words. Don't explain yourself, just make
                     }
                 }
 
-                // Spacebar - scare all the fish!
-                if (e.key === ' ') {
-                    e.preventDefault();
-                    goatFish.forEach(fish => fish.spook());
-                }
-
                 // 'X' key - reset tank
                 if (e.key === 'x' || e.key === 'X') {
                     e.preventDefault();
@@ -820,22 +685,25 @@ Be witty and original. Keep it under 20 words. Don't explain yourself, just make
                 }
             });
 
-            // Click handler for spooked goat-fish and bubble spawning
+            // Click handler for fish commentary and bubble spawning
             canvas.addEventListener('click', (e) => {
                 const rect = canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
 
-                let clickedFish = false;
-                goatFish.forEach(fish => {
+                // Find clicked fish and trigger commentary
+                let clickedFish = null;
+                for (const fish of goatFish) {
                     if (fish.isClicked(x, y)) {
-                        fish.spook();
-                        clickedFish = true;
+                        clickedFish = fish;
+                        break;
                     }
-                });
+                }
 
-                // If didn't click a fish, spawn bubbles
-                if (!clickedFish) {
+                if (clickedFish) {
+                    getFishCommentary(clickedFish);
+                } else {
+                    // If didn't click a fish, spawn bubbles
                     for (let i = 0; i < 8; i++) {
                         const bubble = new Bubble();
                         bubble.x = x + (Math.random() - 0.5) * 40;
@@ -880,11 +748,6 @@ Be witty and original. Keep it under 20 words. Don't explain yourself, just make
             });
 
             // Menu item actions
-            document.getElementById('menuScareAll').addEventListener('click', () => {
-                goatFish.forEach(fish => fish.spook());
-                closeMenuFn();
-            });
-
             document.getElementById('menuFullscreen').addEventListener('click', () => {
                 if (!document.fullscreenElement) {
                     document.documentElement.requestFullscreen();
@@ -931,7 +794,7 @@ Be witty and original. Keep it under 20 words. Don't explain yourself, just make
                     this.x = savedState.x;
                     this.y = savedState.y;
 
-                    // Clamp velocities to normal range in case fish was spooked when saved
+                    // Clamp velocities to normal range
                     this.vx = Math.max(-1, Math.min(1, savedState.vx));
                     this.vy = Math.max(-0.5, Math.min(0.5, savedState.vy));
 
@@ -942,7 +805,6 @@ Be witty and original. Keep it under 20 words. Don't explain yourself, just make
                     this.hornColor = savedState.hornColor;
 
                     // Restore hidden state
-                    this.totalSpooked = savedState.totalSpooked || 0;
                     this.personality = savedState.personality || 'chill';
                     this.socialPreference = savedState.socialPreference || 0.5;
                     this.depthPreference = savedState.depthPreference || 0.5;
@@ -962,7 +824,6 @@ Be witty and original. Keep it under 20 words. Don't explain yourself, just make
                     this.hornColor = `hsl(${hue - 30}, 50%, 40%)`;
 
                     // Hidden state for personality and behavior
-                    this.totalSpooked = 0;
                     const personalities = ['anxious', 'chill', 'hyperactive', 'lazy', 'curious', 'grumpy'];
                     this.personality = personalities[Math.floor(Math.random() * personalities.length)];
                     this.socialPreference = Math.random(); // 0 = loner, 1 = social butterfly
@@ -976,15 +837,9 @@ Be witty and original. Keep it under 20 words. Don't explain yourself, just make
                 this.pupilOffsetX = 0;
                 this.pupilOffsetY = 0;
 
-                // Spooked state
-                this.spooked = false;
-                this.spookTime = 0;
-                this.spinSpeed = 0;
-
                 // Activity tracking
                 this.distanceTraveled = 0;
                 this.nearbyFishCount = 0;
-                this.timeSinceLastSpook = Infinity;
             }
 
             toJSON() {
@@ -998,54 +853,16 @@ Be witty and original. Keep it under 20 words. Don't explain yourself, just make
                     bodyColor: this.bodyColor,
                     finColor: this.finColor,
                     hornColor: this.hornColor,
-                    totalSpooked: this.totalSpooked,
                     personality: this.personality,
                     socialPreference: this.socialPreference,
                     depthPreference: this.depthPreference
                 };
             }
 
-            spook() {
-                this.spooked = true;
-                this.spookTime = 100;
-                this.spinSpeed = 0.5;
-                this.totalSpooked++;
-                this.timeSinceLastSpook = 0;
-
-                // Zoom away in random direction at high speed
-                const angle = Math.random() * Math.PI * 2;
-                this.vx = Math.cos(angle) * 8;
-                this.vy = Math.sin(angle) * 8;
-
-                // Get AI-generated or fallback reaction and display as speech bubble
-                getSpokedCommentary(this).then(text => {
-                    displaySpookedReaction(text, this);
-                });
-            }
-
             update() {
                 // Track distance traveled
                 const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
                 this.distanceTraveled += speed;
-
-                // Track time since last spook
-                if (this.timeSinceLastSpook < Infinity) {
-                    this.timeSinceLastSpook++;
-                }
-
-                // Handle spooked state
-                if (this.spooked) {
-                    this.spookTime--;
-                    this.angle += this.spinSpeed;
-                    this.spinSpeed *= 0.95;
-
-                    if (this.spookTime <= 0) {
-                        this.spooked = false;
-                        // Slow back down to normal speed
-                        this.vx *= 0.3;
-                        this.vy *= 0.3;
-                    }
-                }
 
                 this.x += this.vx;
                 this.y += this.vy;
@@ -1060,11 +877,9 @@ Be witty and original. Keep it under 20 words. Don't explain yourself, just make
                     this.y = Math.max(this.size, Math.min(canvas.height - this.size, this.y));
                 }
 
-                // Smooth angle transition (only when not spooked)
-                if (!this.spooked) {
-                    const targetAngle = Math.atan2(this.vy, this.vx);
-                    this.angle += (targetAngle - this.angle) * 0.1;
-                }
+                // Smooth angle transition
+                const targetAngle = Math.atan2(this.vy, this.vx);
+                this.angle += (targetAngle - this.angle) * 0.1;
 
                 // Update animation phases
                 this.tailPhase += 0.1;
