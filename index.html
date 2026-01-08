@@ -15,14 +15,252 @@
             display: block;
             background: linear-gradient(to bottom, #0a4d68 0%, #1a6f8f 50%, #0a4d68 100%);
         }
+        #commentary {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            color: #222;
+            padding: 12px 18px;
+            border-radius: 15px;
+            max-width: 300px;
+            text-align: left;
+            font-family: Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.4;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s, left 0.1s ease-out, top 0.1s ease-out;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            transform: scale(0.8);
+        }
+        #commentary.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+        /* Pointer pointing down (bubble above fish) - default */
+        #commentary::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 10px solid rgba(255, 255, 255, 0.95);
+        }
+        /* Pointer pointing up (bubble below fish) */
+        #commentary.pointer-up::after {
+            bottom: auto;
+            top: -10px;
+            border-top: none;
+            border-bottom: 10px solid rgba(255, 255, 255, 0.95);
+        }
     </style>
 </head>
 <body>
     <canvas id="tank"></canvas>
+    <div id="commentary"></div>
 
     <script>
         const canvas = document.getElementById('tank');
         const ctx = canvas.getContext('2d');
+        const commentaryDiv = document.getElementById('commentary');
+
+        // AI Commentary System
+        let lastCommentaryTime = 0;
+        const COMMENTARY_INTERVAL = 45000; // 45 seconds between commentaries
+        let speakingFish = null; // Track which fish is currently "speaking"
+        let commentaryTimeout = null; // Track the timeout to clear it
+
+        // Function to get API key from localStorage
+        function getApiKey() {
+            try {
+                return localStorage.getItem('anthropicApiKey');
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Function to save API key to localStorage
+        function saveApiKey(key) {
+            try {
+                localStorage.setItem('anthropicApiKey', key);
+                return true;
+            } catch (e) {
+                console.error('Failed to save API key:', e);
+                return false;
+            }
+        }
+
+        // Gather aquarium state for AI context
+        function gatherAquariumState() {
+            const state = {
+                goatFishCount: goatFish.length,
+                sheatfishCount: sheatfish.length,
+                bubbleCount: bubbles.length,
+                plantCount: plants.length,
+                grassCount: grass.length,
+                tankWidth: canvas.width,
+                tankHeight: canvas.height,
+                goatFishStates: goatFish.slice(0, 3).map(fish => ({
+                    spooked: fish.spooked,
+                    x: Math.round(fish.x),
+                    y: Math.round(fish.y),
+                    size: Math.round(fish.size)
+                })),
+                sheatfishPositions: sheatfish.map(fish => ({
+                    x: Math.round(fish.x),
+                    y: Math.round(fish.y)
+                }))
+            };
+            return state;
+        }
+
+        // Update speech bubble position to follow the fish
+        function updateBubblePosition() {
+            if (!speakingFish || goatFish.indexOf(speakingFish) === -1) {
+                return;
+            }
+
+            const fish = speakingFish;
+            const bubbleWidth = 300; // max-width from CSS
+            const bubbleHeight = 80; // approximate height
+
+            // Calculate position, keeping it on screen
+            let x = fish.x - bubbleWidth / 2;
+            let y = fish.y - fish.size * 2 - bubbleHeight - 20;
+
+            // Keep it on screen horizontally
+            x = Math.max(10, Math.min(x, canvas.width - bubbleWidth - 10));
+
+            // Keep it on screen vertically (if fish is near top, show below instead)
+            if (y < 10) {
+                y = fish.y + fish.size * 2 + 20;
+                commentaryDiv.classList.add('pointer-up');
+            } else {
+                commentaryDiv.classList.remove('pointer-up');
+            }
+
+            commentaryDiv.style.left = x + 'px';
+            commentaryDiv.style.top = y + 'px';
+        }
+
+        // Display commentary in the UI as a speech bubble from a random fish
+        function displayCommentary(text) {
+            if (goatFish.length === 0) return;
+
+            // Clear any existing timeout and hide old bubble
+            if (commentaryTimeout) {
+                clearTimeout(commentaryTimeout);
+                commentaryTimeout = null;
+            }
+            commentaryDiv.classList.remove('visible');
+            speakingFish = null;
+
+            // Small delay to ensure fade-out completes, then show new bubble
+            setTimeout(() => {
+                // Pick a random fish
+                speakingFish = goatFish[Math.floor(Math.random() * goatFish.length)];
+
+                commentaryDiv.textContent = text;
+                updateBubblePosition();
+                commentaryDiv.classList.add('visible');
+
+                // Hide after 10 seconds
+                commentaryTimeout = setTimeout(() => {
+                    commentaryDiv.classList.remove('visible');
+                    speakingFish = null;
+                    commentaryTimeout = null;
+                }, 10000);
+            }, 100);
+        }
+
+        // Call Anthropic API for fish commentary
+        async function getFishCommentary() {
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                console.log('No API key set. Press K to set your Anthropic API key.');
+                displayCommentary('No API key set. Press K to set your Anthropic API key.');
+                return;
+            }
+
+            console.log('Fetching fish commentary...');
+
+            const state = gatherAquariumState();
+
+            const prompt = `You are a fish living in an aquarium. Based on the current state of the aquarium, make a brief, witty observation or comment (1-2 sentences max). Be creative and playful.
+
+Current aquarium state:
+- ${state.goatFishCount} goat-fish swimming around (hybrid goat-fish creatures with horns)
+- ${state.sheatfishCount} sheatfish (catfish) sucking along the bottom
+- ${state.bubbleCount} bubbles floating up
+- ${state.plantCount} seaweed plants swaying
+- Tank dimensions: ${state.tankWidth}x${state.tankHeight}px
+
+Some goat-fish details: ${JSON.stringify(state.goatFishStates)}
+
+Give a short, funny observation from the perspective of a fish. Keep it under 20 words.`;
+
+            try {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-haiku-4-5-20251001',
+                        max_tokens: 100,
+                        messages: [{
+                            role: 'user',
+                            content: prompt
+                        }]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error:', response.status, errorText);
+                    if (response.status === 401) {
+                        displayCommentary('API key invalid. Press K to update.');
+                    } else {
+                        displayCommentary(`API error: ${response.status}. Check console for details.`);
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                console.log('API response:', data);
+                if (data.content && data.content[0] && data.content[0].text) {
+                    displayCommentary(data.content[0].text);
+                } else {
+                    console.error('Unexpected API response format:', data);
+                    displayCommentary('Received unexpected response from API.');
+                }
+            } catch (error) {
+                console.error('Failed to get fish commentary:', error);
+                displayCommentary(`Error: ${error.message}. Check console for details.`);
+            }
+        }
+
+        // Prompt for API key
+        function promptForApiKey() {
+            const key = prompt('Enter your Anthropic API key:\n\n(Get one at https://console.anthropic.com/)');
+            if (key && key.trim()) {
+                if (saveApiKey(key.trim())) {
+                    alert('API key saved! Fish will now comment on their surroundings.');
+                    // Immediately trigger a commentary
+                    getFishCommentary();
+                } else {
+                    alert('Failed to save API key. Please try again.');
+                }
+            }
+        }
 
         // Resize canvas to fill window
         function resizeCanvas() {
@@ -86,6 +324,19 @@
                 if (e.key === 'x' || e.key === 'X') {
                     e.preventDefault();
                     resetTank();
+                }
+
+                // 'K' key - set API key for AI commentary
+                if (e.key === 'k' || e.key === 'K') {
+                    e.preventDefault();
+                    promptForApiKey();
+                }
+
+                // 'C' key - trigger commentary immediately (if API key is set)
+                if (e.key === 'c' || e.key === 'C') {
+                    e.preventDefault();
+                    console.log('C key pressed - triggering commentary');
+                    getFishCommentary();
                 }
             });
 
@@ -1014,6 +1265,12 @@
             // Adjust timestamp with saved offset
             currentAnimationTime = timestamp + animationTimeOffset;
 
+            // Trigger AI commentary periodically (if API key is set)
+            if (getApiKey() && timestamp - lastCommentaryTime > COMMENTARY_INTERVAL) {
+                lastCommentaryTime = timestamp;
+                getFishCommentary();
+            }
+
             // Draw grass (behind plants)
             grass.forEach(g => g.draw(currentAnimationTime));
 
@@ -1037,6 +1294,11 @@
                 fish.update();
                 fish.draw();
             });
+
+            // Update speech bubble position if a fish is speaking
+            if (speakingFish) {
+                updateBubblePosition();
+            }
 
             requestAnimationFrame(animate);
         }
