@@ -371,12 +371,12 @@
                 updateBubblePosition();
                 commentaryDiv.classList.add('visible');
 
-                // Hide after 10 seconds
+                // Hide a few seconds before the next commentary would trigger
                 commentaryTimeout = setTimeout(() => {
                     commentaryDiv.classList.remove('visible');
                     speakingFish = null;
                     commentaryTimeout = null;
-                }, 10000);
+                }, COMMENTARY_INTERVAL - 3000);
             }, 100);
         }
 
@@ -393,33 +393,73 @@
 
             const state = gatherAquariumState();
 
-            const prompt = `You are a goat-fish living in an aquarium. Based on the current state of the aquarium and your fellow fish's hidden personalities and behaviors, make a brief, witty observation or comment (1-2 sentences max). Be creative, playful, and reference the hidden social dynamics and personalities.
+            // Randomize what topic/perspective to focus on for variety
+            const topics = [
+                'existential observation about life in the tank',
+                'complaint or sarcastic comment about tank conditions',
+                'gossip about another fish\'s behavior',
+                'philosophical musing about bubbles or water',
+                'dry joke about being a goat-fish hybrid',
+                'observation about the sheatfish',
+                'comment on swimming patterns or zones',
+                'snarky remark about personalities',
+                'random anxiety or paranoid thought',
+                'boast or humble brag',
+                'complaint about the glass walls',
+                'observation about someone being lazy or hyperactive',
+                'comment on the social dynamics',
+                'joke about horns underwater'
+            ];
 
-Current aquarium state:
-- ${state.goatFishCount} goat-fish swimming around (hybrid goat-fish creatures with horns)
-- ${state.sheatfishCount} sheatfish (catfish) sucking along the bottom
-- ${state.bubbleCount} bubbles floating up
-- ${state.plantCount} seaweed plants swaying
-- Total times spooked (all fish): ${state.totalSpooksAllTime}
-- Total distance traveled: ${state.totalDistanceTraveled}
+            const tones = [
+                'sarcastic and dry',
+                'anxious and worried',
+                'philosophical and pretentious',
+                'grumpy and irritable',
+                'deadpan and matter-of-fact',
+                'passive-aggressive',
+                'melodramatic'
+            ];
 
-Personality distribution: ${JSON.stringify(state.personalityDistribution)}
+            const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+            const randomTone = tones[Math.floor(Math.random() * tones.length)];
 
-Zone distribution:
-- Upper zone: ${state.fishInUpperZone} fish
-- Middle zone: ${state.fishInMiddleZone} fish
-- Lower zone: ${state.fishInLowerZone} fish
+            // Randomly choose which stats to include (not all at once)
+            const includePersonalities = Math.random() > 0.5;
+            const includeZones = Math.random() > 0.5;
+            const includeSocial = Math.random() > 0.5;
 
-Hidden social dynamics (only you fish know about):
-- Most spooked fish: ${state.mostSpookedFish.personality} personality, spooked ${state.mostSpookedFish.totalSpooked} times total
-- Most active swimmer: ${state.mostActiveFish.personality} personality, traveled ${state.mostActiveFish.distanceTraveled} pixels
-- Laziest fish: ${state.laziestFish.personality} personality, only traveled ${state.laziestFish.distanceTraveled} pixels
-- Most social: ${state.mostSocialFish.personality} personality with ${state.mostSocialFish.nearbyFriends} nearby friends (${state.mostSocialFish.socialPreference}% social preference)
-- Loneliest: ${state.loneliestFish.personality} personality with ${state.loneliestFish.nearbyFriends} nearby friends (${state.loneliestFish.socialPreference}% social preference)
+            let contextInfo = `You are a goat-fish in an aquarium. There are ${state.goatFishCount} goat-fish and ${state.sheatfishCount} sheatfish here.`;
 
-Sample fish states: ${JSON.stringify(state.goatFishStates)}
+            if (includePersonalities && Object.keys(state.personalityDistribution).length > 0) {
+                const personalityList = Object.entries(state.personalityDistribution)
+                    .map(([p, count]) => `${count} ${p}`)
+                    .join(', ');
+                contextInfo += ` Personalities: ${personalityList}.`;
+            }
 
-Give a short, funny, dry-humored observation from the perspective of a fish commenting on these hidden dynamics, personalities, or behaviors. Keep it under 20 words.`;
+            if (includeZones) {
+                contextInfo += ` ${state.fishInUpperZone} fish up top, ${state.fishInMiddleZone} in middle, ${state.fishInLowerZone} at bottom.`;
+            }
+
+            if (includeSocial) {
+                contextInfo += ` Most social fish has ${state.mostSocialFish.nearbyFriends} friends nearby. Loneliest has ${state.loneliestFish.nearbyFriends}.`;
+            }
+
+            // Sometimes mention interesting facts
+            if (Math.random() > 0.6) {
+                if (state.totalSpooksAllTime > 10) {
+                    contextInfo += ` Total spook count: ${state.totalSpooksAllTime}.`;
+                }
+                if (state.mostSpookedFish.totalSpooked > 3) {
+                    contextInfo += ` Someone's been spooked ${state.mostSpookedFish.totalSpooked} times.`;
+                }
+            }
+
+            const prompt = `${contextInfo}
+
+Make a ${randomTone} comment about: ${randomTopic}.
+Be witty and original. Keep it under 20 words. Don't explain yourself, just make the comment.`;
 
             try {
                 const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -502,6 +542,14 @@ Give a short, funny, dry-humored observation from the perspective of a fish comm
 
             // Reset function - clear localStorage and reinitialize
             function resetTank() {
+                // Clear commentary bubble and timeout
+                if (commentaryTimeout) {
+                    clearTimeout(commentaryTimeout);
+                    commentaryTimeout = null;
+                }
+                commentaryDiv.classList.remove('visible');
+                speakingFish = null;
+
                 try {
                     localStorage.removeItem('goatFishState');
                     localStorage.removeItem('sheatfishState');
@@ -1582,8 +1630,8 @@ Give a short, funny, dry-humored observation from the perspective of a fish comm
             // Adjust timestamp with saved offset
             currentAnimationTime = timestamp + animationTimeOffset;
 
-            // Trigger AI commentary periodically (if API key is set)
-            if (getApiKey() && timestamp - lastCommentaryTime > COMMENTARY_INTERVAL) {
+            // Trigger AI commentary periodically (if API key is set and no commentary is currently showing)
+            if (getApiKey() && timestamp - lastCommentaryTime > COMMENTARY_INTERVAL && !commentaryTimeout) {
                 lastCommentaryTime = timestamp;
                 getFishCommentary();
             }
