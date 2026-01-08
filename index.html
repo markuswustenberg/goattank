@@ -441,7 +441,7 @@
             const randomTopic = topics[Math.floor(Math.random() * topics.length)];
             const randomTone = tones[Math.floor(Math.random() * tones.length)];
 
-            const prompt = `You are a ${fish.personality} goat-fish who just got spooked/startled in an aquarium. Make a ${randomTone} ${randomTopic}. Keep it under 5 words. Just the exclamation, no explanation.`;
+            const prompt = `You are a ${fish.personality} goat-fish who just got spooked/startled in an aquarium. Make a ${randomTone} ${randomTopic}. Keep it under 5 words. Just the exclamation, no explanation. Never use quotation marks around the text.`;
 
             try {
                 const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -563,7 +563,7 @@
             const prompt = `${contextInfo}
 
 Make a ${randomTone} comment about: ${randomTopic}.
-Be witty and original. Keep it under 20 words. Don't explain yourself, just make the comment.`;
+Be witty and original. Keep it under 20 words. Don't explain yourself, just make the comment. Never use quotation marks around the text.`;
 
             try {
                 const response = await fetch('https://api.anthropic.com/v1/messages', {
